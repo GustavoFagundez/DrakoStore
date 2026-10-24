@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050507">
+  <title>Sistema de Estoque</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="icones/favicon-64.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body class="sem-sessao">
+  <nav class="barra-topo">
+    <span class="marca">Sistema de Estoque</span>
+    <div class="topo-direita">
+      <div class="notificacoes">
+        <button type="button" id="btn-sino" class="botao-sino" aria-label="Notificações" aria-expanded="false" aria-controls="painel-notificacoes">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span id="sino-contador" class="sino-contador" hidden></span>
+        </button>
+        <div id="painel-notificacoes" class="painel-notificacoes" hidden>
+          <h2>Notificações</h2>
+          <ul id="lista-notificacoes" class="lista-notificacoes"></ul>
+        </div>
+      </div>
+      <div class="topo-botoes">
+        <button type="button" id="btn-criar-categoria" class="botao botao-escuro">+ Criar categoria</button>
+        <button type="button" id="btn-venda" class="botao botao-primario">Registrar venda</button>
+      </div>
+    </div>
+  </nav>
+
+  <header class="topo">
+    <h1>Controle de<br><span class="titulo-brilho">Estoque</span></h1>
+    <div class="conta-linha">
+      <span id="status-salvamento" class="status-salvamento" role="status" aria-live="polite"></span>
+      <span id="conta-email" class="conta-email"></span>
+      <button type="button" id="btn-recarregar" class="botao-link" hidden>Recarregar da nuvem</button>
+      <button type="button" id="btn-sair" class="botao-link">Sair</button>
+    </div>
+  </header>
+
+  <section id="area-graficos" class="area-graficos" hidden>
+    <div class="cabecalho-graficos">
+      <h2 id="titulo-graficos" class="titulo-secao"></h2>
+      <button type="button" id="btn-ver-geral" class="botao botao-secundario botao-pequeno" hidden>Ver visão geral</button>
+    </div>
+    <p class="dica">Escolha os gráficos que quer ver. Clique em uma categoria para filtrar os números dela.</p>
+    <div id="seletor-graficos" class="filtros" role="group" aria-label="Escolher gráficos"></div>
+    <div id="graficos" class="graficos"></div>
+  </section>
+
+  <main id="lista-categorias" class="conteudo"></main>
+
+  <!-- Janela: criar / editar categoria (com variações e suas opções) -->
+  <dialog id="dialogo-categoria" class="dialogo-medio">
+    <form id="form-categoria" novalidate>
+      <h2 id="titulo-categoria"></h2>
+
+      <label class="campo">Nome da categoria
+        <input id="categoria-nome" type="text" placeholder="Ex.: Camisetas" autocomplete="off">
+      </label>
+
+      <div id="categoria-imagem"></div>
+
+      <fieldset class="grupo">
+        <legend>Variações e opções</legend>
+        <p class="dica">
+          Cadastre tudo que esta categoria pode ter. Exemplo:
+          <strong>Cor</strong> → Azul, Vermelho &nbsp;·&nbsp; <strong>Tamanho</strong> → P, M, G.
+          Depois, ao cadastrar um produto, você só marca as opções.
+        </p>
+        <div id="categoria-variacoes"></div>
+        <button type="button" id="btn-add-variacao" class="botao botao-secundario">+ Adicionar variação</button>
+      </fieldset>
+
+      <p id="categoria-erro" class="erro" role="alert"></p>
+      <div class="acoes-dialogo">
+        <button type="button" class="botao botao-secundario" data-fechar>Cancelar</button>
+        <button type="submit" class="botao botao-primario">Salvar categoria</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Janela: cadastrar produto (marcando as opções) -->
+  <dialog id="dialogo-produto" class="dialogo-medio">
+    <form id="form-produto" novalidate>
+      <h2 id="titulo-produto"></h2>
+
+      <label class="campo">Nome do produto
+        <input id="produto-nome" type="text" placeholder="Ex.: Camiseta básica" autocomplete="off">
+      </label>
+
+      <div id="produto-imagem"></div>
+
+      <div id="produto-opcoes"></div>
+      <div id="produto-combinacoes" class="combinacoes"></div>
+
+      <p id="produto-erro" class="erro" role="alert"></p>
+      <div class="acoes-dialogo">
+        <button type="button" class="botao botao-secundario" data-fechar>Cancelar</button>
+        <button type="submit" class="botao botao-primario">Cadastrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Janela: editar um item já cadastrado -->
+  <dialog id="dialogo-edicao-produto" class="dialogo-medio">
+    <form id="form-edicao-produto" novalidate>
+      <h2 id="titulo-edicao-produto"></h2>
+
+      <label class="campo">Nome do produto
+        <input id="edicao-nome" type="text" autocomplete="off">
+      </label>
+
+      <div id="edicao-imagem"></div>
+
+      <div id="edicao-variacoes"></div>
+
+      <div class="linha-dupla">
+        <label class="campo">Estoque
+          <input id="edicao-estoque" type="number" min="0" step="1" value="0">
+        </label>
+        <label class="campo">Vendidos
+          <input id="edicao-vendidos" type="number" min="0" step="1" value="0">
+        </label>
+      </div>
+
+      <p id="edicao-erro" class="erro" role="alert"></p>
+      <div class="acoes-dialogo">
+        <button type="button" class="botao botao-secundario" data-fechar>Cancelar</button>
+        <button type="submit" class="botao botao-primario">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Janela: registrar venda -->
+  <dialog id="dialogo-venda" class="dialogo-largo">
+    <form id="form-venda" novalidate>
+      <header class="venda-cabecalho">
+        <h2>Registrar venda</h2>
+        <button type="button" class="botao-fechar" data-fechar aria-label="Fechar">×</button>
+      </header>
+
+      <div class="venda-corpo">
+        <!-- Lado esquerdo: busca e lista de produtos -->
+        <section>
+          <div class="busca">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+            </svg>
+            <input id="venda-busca" type="search" placeholder="Buscar por nome, cor, tamanho, categoria..." autocomplete="off" aria-label="Buscar produto">
+          </div>
+
+          <div id="venda-filtros" class="filtros" hidden></div>
+          <p id="venda-contagem" class="contagem"></p>
+          <ul id="venda-resultados" class="lista-resultados"></ul>
+        </section>
+
+        <!-- Lado direito: produto escolhido e quantidade -->
+        <aside class="venda-painel">
+          <p id="venda-sucesso" class="mensagem-sucesso" role="status" hidden></p>
+
+          <div id="venda-vazio" class="painel-vazio">
+            Escolha um produto na lista para registrar a venda.<br>
+            <small>Dica: digite na busca e aperte Enter para escolher o primeiro.</small>
+          </div>
+
+          <div id="venda-selecionado" hidden>
+            <div id="venda-imagem"></div>
+            <p id="venda-categoria" class="etiqueta"></p>
+            <h3 id="venda-nome"></h3>
+            <div id="venda-variacoes" class="chips-info"></div>
+            <p class="estoque-info">Em estoque: <strong id="venda-estoque"></strong></p>
+
+            <label class="rotulo-quantidade" for="venda-quantidade">Quantos foram vendidos?</label>
+            <div class="seletor-quantidade">
+              <button type="button" id="venda-menos" aria-label="Diminuir quantidade">−</button>
+              <input id="venda-quantidade" type="number" min="1" step="1" value="1" inputmode="numeric">
+              <button type="button" id="venda-mais" aria-label="Aumentar quantidade">+</button>
+            </div>
+
+            <p id="venda-resumo" class="resumo-venda"></p>
+            <p id="venda-erro" class="erro" role="alert"></p>
+            <button type="submit" id="btn-confirmar-venda" class="botao botao-sucesso botao-grande">Confirmar venda</button>
+          </div>
+        </aside>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Barra que aparece ao selecionar produtos na tabela -->
+  <div id="barra-selecao" class="barra-selecao" role="region" aria-label="Itens selecionados" hidden>
+    <strong id="selecao-contagem"></strong>
+    <button type="button" id="btn-editar-massa" class="botao botao-primario botao-pequeno">Editar em massa</button>
+    <button type="button" id="btn-excluir-massa" class="botao botao-perigo botao-pequeno">Excluir</button>
+    <button type="button" id="btn-selecionar-tudo" class="botao botao-secundario botao-pequeno">Selecionar tudo</button>
+    <button type="button" id="btn-limpar-selecao" class="botao botao-secundario botao-pequeno">Limpar</button>
+  </div>
+
+  <!-- Janela: editar vários itens de uma vez -->
+  <dialog id="dialogo-massa" class="dialogo-medio">
+    <form id="form-massa" novalidate>
+      <h2 id="titulo-massa"></h2>
+      <p class="dica">Só o que você preencher será alterado. Campos em branco ficam como estão.</p>
+
+      <label class="campo">Nome do produto
+        <input id="massa-nome" type="text" placeholder="Manter nomes atuais" autocomplete="off">
+      </label>
+
+      <div id="massa-imagem"></div>
+
+      <div id="massa-variacoes"></div>
+
+      <div class="linha-dupla">
+        <div class="campo">Estoque
+          <div class="linha-modo">
+            <select id="massa-estoque-modo" aria-label="Como alterar o estoque">
+              <option value="definir">Definir</option><option value="somar">Somar</option><option value="subtrair">Subtrair</option>
+            </select>
+            <input id="massa-estoque" type="number" min="0" step="1" placeholder="Manter" aria-label="Valor do estoque">
+          </div>
+        </div>
+        <div class="campo">Vendidos
+          <div class="linha-modo">
+            <select id="massa-vendidos-modo" aria-label="Como alterar os vendidos">
+              <option value="definir">Definir</option><option value="somar">Somar</option><option value="subtrair">Subtrair</option>
+            </select>
+            <input id="massa-vendidos" type="number" min="0" step="1" placeholder="Manter" aria-label="Valor de vendidos">
+          </div>
+        </div>
+      </div>
+
+      <p id="massa-erro" class="erro" role="alert"></p>
+      <div class="acoes-dialogo">
+        <button type="button" class="botao botao-secundario" data-fechar>Cancelar</button>
+        <button type="submit" class="botao botao-primario">Aplicar a todos</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Login e carregamento (aparecem antes do sistema) -->
+  <div id="tela-carregando" class="tela-carregando" role="status">
+    <span class="rodando" aria-hidden="true"></span>
+    <span>Carregando seu estoque…</span>
+  </div>
+
+  <main id="tela-login" class="tela-login" hidden>
+    <form id="form-login" class="cartao-login" novalidate>
+      <img class="login-logo" src="icones/icone-192.png" alt="" width="72" height="72">
+      <h1>Sistema de Estoque</h1>
+      <p id="login-aviso" class="dica">Entre para acessar seu estoque.</p>
+
+      <label class="campo">E-mail
+        <input id="login-email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="voce@exemplo.com">
+      </label>
+      <label class="campo">Senha
+        <input id="login-senha" type="password" autocomplete="current-password" placeholder="Mínimo de 6 caracteres">
+      </label>
+
+      <p id="login-erro" class="erro" role="alert"></p>
+      <p id="login-info" class="mensagem-sucesso" role="status" hidden></p>
+      <button type="submit" id="btn-entrar" class="botao botao-primario botao-grande">Entrar</button>
+      <button type="button" id="btn-criar-conta" class="botao-link botao-largo">Criar uma conta</button>
+    </form>
+  </main>
+
+  <!-- Biblioteca do Supabase (versão fixa) e as chaves do seu projeto -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+
+  <script src="banco.js"></script>
+  <script src="estoque.js"></script>
+  <script src="imagens.js"></script>
+  <script src="graficos.js"></script>
+  <script src="interface.js"></script>
+</body>
+</html>
